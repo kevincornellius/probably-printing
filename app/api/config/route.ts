@@ -1,57 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { redis } from "@/lib/redis";
-
-const CORS_ALLOW_ORIGINS = (process.env.CORS_ALLOW_ORIGIN || "*")
-  .split(",")
-  .map((d) => d.trim())
-  .filter(Boolean);
-
-function createCORSHeaders(requestOrigin: string | null): HeadersInit {
-  const allowedOrigin = getAllowedOrigin(requestOrigin);
-  
-  const headers: HeadersInit = {
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Secret-Key",
-    "Access-Control-Max-Age": "86400",
-    "Vary": "Origin"
-  };
-
-  if (allowedOrigin) {
-    headers["Access-Control-Allow-Origin"] = allowedOrigin;
-    headers["Access-Control-Allow-Credentials"] = "true";
-  }
-
-  return headers;
-}
-
-function getAllowedOrigin(requestOrigin: string | null): string | null {
-  // Allow wildcard
-  if (CORS_ALLOW_ORIGINS.includes("*")) return "*";
-  
-  // No origin (direct request)
-  if (!requestOrigin) return null;
-  
-  // Check exact match
-  if (CORS_ALLOW_ORIGINS.includes(requestOrigin)) return requestOrigin;
-  
-  // Check for localhost development patterns
-  if (requestOrigin.match(/^https?:\/\/localhost(:\d+)?$/) && 
-      CORS_ALLOW_ORIGINS.some(origin => origin.includes("localhost"))) {
-    return requestOrigin;
-  }
-  
-  return null;
-}
-
-function handleCORS(req: NextRequest) {
-  const requestOrigin = req.headers.get("origin");
-  const corsHeaders = createCORSHeaders(requestOrigin);
-  
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders,
-  });
-}
+import { createCORSHeaders, handleCORS, validateSecretKey, createErrorResponse, createSuccessResponse } from "@/lib/api-utils";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCORS(req);
@@ -67,22 +16,18 @@ export async function GET(req: NextRequest) {
       await redis.connect();
     }
 
-    // Get the CSS string from Redis config hash
+    // Get the CSS string and quotes from Redis config hash
     const cssString = await redis.hGet("config", "css_string") || "";
+    const quotesString = await redis.hGet("config", "quotes") || "";
 
-    return new NextResponse(JSON.stringify({
+    return createSuccessResponse({
       success: true,
       css_string: cssString,
-    }), {
-      status: 200,
-      headers: corsHeaders,
-    });
+      quotes: quotesString,
+    }, corsHeaders);
   } catch (err) {
     console.error("Redis operation failed:", err);
-    return new NextResponse(JSON.stringify({ error: "Failed to fetch configuration" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return createErrorResponse("Failed to fetch configuration", 500, corsHeaders);
   }
 }
 
@@ -92,24 +37,29 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const cssString = formData.get("css_string") as string;
+  const quotesString = formData.get("quotes") as string;
   const secretKey = formData.get("secretKey") as string;
 
-  // Check secret key (bypass in development mode)
-  const isProduction = process.env.NODE_ENV === "production";
-  const requiredSecretKey = process.env.API_SECRET_KEY;
-  
-  if (isProduction && (!secretKey || secretKey !== requiredSecretKey)) {
-    return new NextResponse(JSON.stringify({ error: "Invalid or missing secret key" }), {
-      status: 401,
-      headers: corsHeaders,
-    });
-  }
+  // Validate secret key
+  const secretKeyError = validateSecretKey(secretKey, corsHeaders);
+  if (secretKeyError) return secretKeyError;
 
-  if (!cssString) {
-    return new NextResponse(JSON.stringify({ error: "CSS string is required" }), {
-      status: 400,
-      headers: corsHeaders,
-    });
+  // Validate quotes JSON if provided
+  if (quotesString) {
+    try {
+      const quotes = JSON.parse(quotesString);
+      if (!Array.isArray(quotes)) {
+        return createErrorResponse("Quotes must be a JSON array", 400, corsHeaders);
+      }
+      // Validate quote structure
+      for (const quote of quotes) {
+        if (!quote.author || !quote.quote) {
+          return createErrorResponse("Each quote must have 'author' and 'quote' fields", 400, corsHeaders);
+        }
+      }
+    } catch (err) {
+      return createErrorResponse("Invalid JSON format for quotes", 400, corsHeaders);
+    }
   }
 
   try {
@@ -118,25 +68,26 @@ export async function POST(req: NextRequest) {
       await redis.connect();
     }
 
-    // Set the CSS string in Redis config hash
-    await redis.hSet("config", "css_string", cssString);
+    // Set the CSS string and quotes in Redis config hash
+    const updates: { [key: string]: string } = {};
+    if (cssString) updates.css_string = cssString;
+    if (quotesString) updates.quotes = quotesString;
+    
+    if (Object.keys(updates).length > 0) {
+      await redis.hSet("config", updates);
+    }
 
-    console.log("Updated CSS configuration in Redis");
+    console.log("Updated configuration in Redis:", Object.keys(updates));
 
-    return new NextResponse(JSON.stringify({
+    return createSuccessResponse({
       success: true,
-      message: "CSS configuration updated successfully",
+      message: "Configuration updated successfully",
       css_string: cssString,
-    }), {
-      status: 200,
-      headers: corsHeaders,
-    });
+      quotes: quotesString,
+    }, corsHeaders);
   } catch (err) {
     console.error("Redis operation failed:", err);
-    return new NextResponse(JSON.stringify({ error: "Failed to update configuration" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return createErrorResponse("Failed to update configuration", 500, corsHeaders);
   }
 }
 
@@ -147,16 +98,9 @@ export async function DELETE(req: NextRequest) {
   const formData = await req.formData();
   const secretKey = formData.get("secretKey") as string;
 
-  // Check secret key (bypass in development mode)
-  const isProduction = process.env.NODE_ENV === "production";
-  const requiredSecretKey = process.env.API_SECRET_KEY;
-  
-  if (isProduction && (!secretKey || secretKey !== requiredSecretKey)) {
-    return new NextResponse(JSON.stringify({ error: "Invalid or missing secret key" }), {
-      status: 401,
-      headers: corsHeaders,
-    });
-  }
+  // Validate secret key
+  const secretKeyError = validateSecretKey(secretKey, corsHeaders);
+  if (secretKeyError) return secretKeyError;
 
   try {
     // Connect to Redis if not connected
@@ -164,23 +108,17 @@ export async function DELETE(req: NextRequest) {
       await redis.connect();
     }
 
-    // Delete the CSS string from Redis config hash
-    await redis.hDel("config", "css_string");
+    // Delete the CSS string and quotes from Redis config hash
+    await redis.hDel("config", ["css_string", "quotes"]);
 
-    console.log("Reset CSS configuration in Redis");
+    console.log("Reset CSS and quotes configuration in Redis");
 
-    return new NextResponse(JSON.stringify({
+    return createSuccessResponse({
       success: true,
       message: "CSS configuration reset successfully",
-    }), {
-      status: 200,
-      headers: corsHeaders,
-    });
+    }, corsHeaders);
   } catch (err) {
     console.error("Redis operation failed:", err);
-    return new NextResponse(JSON.stringify({ error: "Failed to reset configuration" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return createErrorResponse("Failed to reset configuration", 500, corsHeaders);
   }
 }

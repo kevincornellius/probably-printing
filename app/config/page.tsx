@@ -6,6 +6,7 @@ export default function ConfigPage() {
   const [resetting, setResetting] = useState(false);
   const [secretKey, setSecretKey] = useState("");
   const [cssString, setCssString] = useState("");
+  const [quotesString, setQuotesString] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   
   const isDevelopment = process.env.NODE_ENV === "development";
@@ -17,6 +18,7 @@ export default function ConfigPage() {
         const result = await res.json();
         if (res.ok && result.success) {
           setCssString(result.css_string);
+          setQuotesString(result.quotes);
         }
       } catch (err) {
         console.error("Failed to fetch initial configuration:", err);
@@ -29,14 +31,36 @@ export default function ConfigPage() {
   }, []);
 
   async function handleSubmit() {
-    if (!cssString.trim()) {
-      alert("Please enter CSS string before submitting.");
+    if (!cssString.trim() && !quotesString.trim()) {
+      alert("Please enter CSS string or quotes before submitting.");
       return;
+    }
+
+    // Validate quotes JSON if provided
+    if (quotesString.trim()) {
+      try {
+        const quotes = JSON.parse(quotesString);
+        if (!Array.isArray(quotes)) {
+          alert("Quotes must be a JSON array");
+          return;
+        }
+        // Validate quote structure
+        for (const quote of quotes) {
+          if (!quote.author || !quote.quote) {
+            alert("Each quote must have 'author' and 'quote' fields");
+            return;
+          }
+        }
+      } catch (err) {
+        alert("Invalid JSON format for quotes");
+        return;
+      }
     }
 
     setLoading(true);
     const formData = new FormData();
-    formData.append("css_string", cssString);
+    if (cssString.trim()) formData.append("css_string", cssString);
+    if (quotesString.trim()) formData.append("quotes", quotesString);
     formData.append("secretKey", secretKey);
 
     try {
@@ -53,7 +77,7 @@ export default function ConfigPage() {
   }
 
   async function handleReset() {
-    if (!confirm("Are you sure you want to reset the CSS configuration? This action cannot be undone.")) {
+    if (!confirm("Are you sure you want to reset the configuration? This will delete all saved CSS templates and quotes.")) {
       return;
     }
 
@@ -62,14 +86,22 @@ export default function ConfigPage() {
     formData.append("secretKey", secretKey);
 
     try {
-      const res = await fetch("/api/config", { method: "DELETE", body: formData });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Configuration reset failed");
-      console.log("Reset result:", result);
-      alert("Configuration reset successfully!");
-      setCssString(""); // Clear the textarea
-    } catch (err: any) {
-      alert("Configuration reset failed: " + err.message);
+      const response = await fetch("/api/config", {
+        method: "DELETE",
+        body: formData,
+      });
+
+      if (response.ok) {
+        setCssString("");
+        setQuotesString("");
+        alert("Configuration reset successfully!");
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.error || "Failed to reset configuration"}`);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error occurred");
     } finally {
       setResetting(false);
     }
@@ -136,10 +168,11 @@ export default function ConfigPage() {
               <span className="ml-2 text-xs text-blue-600">Loading current config...</span>
             )}
           </label>
-          <textarea
-            id="cssString"
-            name="css_string"
-            placeholder={initialLoading ? "Loading current configuration..." : `/* CSS Template for PDF Generation */
+                    <textarea
+            value={cssString}
+            onChange={(e) => setCssString(e.target.value)}
+            className="w-full h-64 p-4 border border-gray-300 rounded-lg font-mono text-sm"
+            placeholder={`/* CSS Template for PDF Generation */
 @page {
   margin: 1in;
   @top-center {
@@ -169,15 +202,6 @@ body {
 }
 
 /* Use %(variable)s syntax for dynamic content */`}
-            value={cssString}
-            onChange={(e) => setCssString(e.target.value)}
-            disabled={initialLoading}
-            rows={16}
-            className={`border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 transition font-mono text-sm ${
-              initialLoading
-                ? "border-gray-200 bg-gray-50 text-gray-400"
-                : "border-gray-300 focus:ring-purple-300"
-            }`}
           />
           <div className="mt-2 space-y-1">
             <p className="text-xs text-gray-500">
@@ -187,6 +211,28 @@ body {
               Example: <code className="bg-blue-50 px-1 rounded">content: "Team: %(teamname)s | File: %(filename)s";</code>
             </p>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-lg font-medium text-gray-700 mb-2">
+            Quotes (JSON Array)
+          </label>
+          <textarea
+            value={quotesString}
+            onChange={(e) => setQuotesString(e.target.value)}
+            className="w-full h-48 p-4 border border-gray-300 rounded-lg font-mono text-sm"
+            placeholder='Enter quotes as JSON array:
+[
+  {
+    "author": "Author Name",
+    "quote": "Quote text here"
+  },
+  {
+    "author": "Another Author", 
+    "quote": "Another quote"
+  }
+]'
+          />
         </div>
 
         <div className="flex gap-3">
