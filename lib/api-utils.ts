@@ -5,12 +5,15 @@ const CORS_ALLOW_ORIGINS = (process.env.CORS_ALLOW_ORIGIN || "*")
   .map((d) => d.trim())
   .filter(Boolean);
 
+const JUDGELS_BASE_API_URL = process.env.JUDGELS_BASE_API_URL!;
+const WHITELISTED_JUDGELS_USERS = (process.env.WHITELISTED_JUDGELS_USERS || "").split(",").map(user => user.trim()).filter(Boolean);
+
 export function createCORSHeaders(requestOrigin: string | null): HeadersInit {
   const allowedOrigin = getAllowedOrigin(requestOrigin);
   
   const headers: HeadersInit = {
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Secret-Key",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Secret-Key, x-judgels-bearer-token, x-judgels-user-info",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin"
   };
@@ -57,7 +60,7 @@ export function validateSecretKey(
   corsHeaders: HeadersInit
 ): NextResponse | null {
   // Check secret key (bypass in development mode)
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production" && process.env.MODE === "production";
   const requiredSecretKey = process.env.API_SECRET_KEY;
   
   if (isProduction && (!secretKey || secretKey !== requiredSecretKey)) {
@@ -69,6 +72,29 @@ export function validateSecretKey(
 
   return null; // Valid secret key
 }
+
+export async function verifyJudgelsUser(token: string, userInfo: { jid: string; username: string; email: string }): Promise<boolean | object> {
+  try {
+    // Call Judgels API to verify token and get user info
+    const response = await fetch(`${JUDGELS_BASE_API_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      const verifiedUser = await response.json();
+      if (verifiedUser.username !== userInfo.username || verifiedUser.jid !== userInfo.jid || verifiedUser.email !== userInfo.email) {
+        return false;
+      }
+      return (!WHITELISTED_JUDGELS_USERS.length || WHITELISTED_JUDGELS_USERS.includes(verifiedUser.username));
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 
 export function createErrorResponse(
   error: string,

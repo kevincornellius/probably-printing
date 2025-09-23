@@ -10,7 +10,7 @@ export default function ConfigPage() {
   const [htmlFormatterConfig, setHtmlFormatterConfig] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   
-  const isDevelopment = process.env.NODE_ENV === "development";
+  const isDevelopment = process.env.NODE_ENV === "development" || process.env.MODE === "development";
 
   useEffect(() => {
     async function fetchInitialConfig() {
@@ -53,7 +53,7 @@ export default function ConfigPage() {
             return;
           }
         }
-      } catch (err) {
+      } catch {
         alert("Invalid JSON format for quotes");
         return;
       }
@@ -63,7 +63,7 @@ export default function ConfigPage() {
     if (htmlFormatterConfig.trim()) {
       try {
         JSON.parse(htmlFormatterConfig);
-      } catch (err) {
+      } catch {
         alert("Invalid JSON format for HTML formatter config");
         return;
       }
