@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function Home() {
+  const router = useRouter();
   const [printersOnline, setPrintersOnline] = useState(3);
   const [jobsInQueue, setJobsInQueue] = useState(42);
   const [pagesPerSecond, setPagesPerSecond] = useState(0);
@@ -106,7 +108,7 @@ export default function Home() {
               <span className="relative z-10">Get Started 🎯</span>
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
             </button>
-            <button className="px-8 py-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400">
+            <button className="px-8 py-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-slate-200 dark:border-slate-600 hover:border-blue-400" onClick={() => router.push('/submit')}>
               Live Demo 📱
             </button>
           </div>
