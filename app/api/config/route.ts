@@ -19,11 +19,13 @@ export async function GET(req: NextRequest) {
     // Get the CSS string and quotes from Redis config hash
     const cssString = await redis.hGet("config", "css_string") || "";
     const quotesString = await redis.hGet("config", "quotes") || "";
+    const htmlFormatterConfig = await redis.hGet("config", "html_formatter_config") || "";
 
     return createSuccessResponse({
       success: true,
       css_string: cssString,
       quotes: quotesString,
+      html_formatter_config: htmlFormatterConfig,
     }, corsHeaders);
   } catch (err) {
     console.error("Redis operation failed:", err);
