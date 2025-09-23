@@ -34,8 +34,8 @@ export default function FileUploader() {
       console.log("Upload result:", result);
       alert("Upload successful!");
       setFile(null); // reset after success
-    } catch (err: any) {
-      alert("Upload failed: " + err.message);
+    } catch (err: Error | unknown) {
+      alert("Upload failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }

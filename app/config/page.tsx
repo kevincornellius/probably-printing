@@ -7,6 +7,7 @@ export default function ConfigPage() {
   const [secretKey, setSecretKey] = useState("");
   const [cssString, setCssString] = useState("");
   const [quotesString, setQuotesString] = useState("");
+  const [htmlFormatterConfig, setHtmlFormatterConfig] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   
   const isDevelopment = process.env.NODE_ENV === "development";
@@ -19,6 +20,7 @@ export default function ConfigPage() {
         if (res.ok && result.success) {
           setCssString(result.css_string);
           setQuotesString(result.quotes);
+          setHtmlFormatterConfig(result.html_formatter_config);
         }
       } catch (err) {
         console.error("Failed to fetch initial configuration:", err);
@@ -31,8 +33,8 @@ export default function ConfigPage() {
   }, []);
 
   async function handleSubmit() {
-    if (!cssString.trim() && !quotesString.trim()) {
-      alert("Please enter CSS string or quotes before submitting.");
+    if (!cssString.trim() && !quotesString.trim() && !htmlFormatterConfig.trim()) {
+      alert("Please enter CSS string, quotes, or HTML formatter config before submitting.");
       return;
     }
 
@@ -57,10 +59,21 @@ export default function ConfigPage() {
       }
     }
 
+    // Validate HTML formatter config JSON if provided
+    if (htmlFormatterConfig.trim()) {
+      try {
+        JSON.parse(htmlFormatterConfig);
+      } catch (err) {
+        alert("Invalid JSON format for HTML formatter config");
+        return;
+      }
+    }
+
     setLoading(true);
     const formData = new FormData();
     if (cssString.trim()) formData.append("css_string", cssString);
     if (quotesString.trim()) formData.append("quotes", quotesString);
+    if (htmlFormatterConfig.trim()) formData.append("html_formatter_config", htmlFormatterConfig);
     formData.append("secretKey", secretKey);
 
     try {
@@ -69,8 +82,8 @@ export default function ConfigPage() {
       if (!res.ok) throw new Error(result.error || "Configuration update failed");
       console.log("Config result:", result);
       alert("Configuration updated successfully!");
-    } catch (err: any) {
-      alert("Configuration update failed: " + err.message);
+    } catch (err: Error | unknown) {
+      alert("Configuration update failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -94,6 +107,7 @@ export default function ConfigPage() {
       if (response.ok) {
         setCssString("");
         setQuotesString("");
+        setHtmlFormatterConfig("");
         alert("Configuration reset successfully!");
       } else {
         const errorData = await response.json();
@@ -112,7 +126,7 @@ export default function ConfigPage() {
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Configuration Management</h2>
-          <p className="text-gray-600">Update CSS styling configuration</p>
+          <p className="text-gray-600">Update worker configurations</p>
         </div>
 
         <div className="mb-6 bg-purple-50 border border-purple-200 rounded-xl p-4 text-sm text-purple-900 flex flex-col gap-3">
@@ -208,7 +222,7 @@ body {
               This CSS template uses Python string formatting. Variables are injected using <code className="bg-gray-100 px-1 rounded">%(variable)s</code> syntax.
             </p>
             <p className="text-xs text-blue-600">
-              Example: <code className="bg-blue-50 px-1 rounded">content: "Team: %(teamname)s | File: %(filename)s";</code>
+              Example: <code className="bg-blue-50 px-1 rounded">{`content: "Team: %(teamname)s | File: %(filename)s";`}</code>
             </p>
           </div>
         </div>
@@ -233,6 +247,29 @@ body {
   }
 ]'
           />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-lg font-medium text-gray-700 mb-2">
+            HTML Formatter Config (JSON)
+          </label>
+          <textarea
+            value={htmlFormatterConfig}
+            onChange={(e) => setHtmlFormatterConfig(e.target.value)}
+            className="w-full h-32 p-4 border border-gray-300 rounded-lg font-mono text-sm"
+            placeholder='Enter Pygments HTML formatter configuration:
+{
+  "full": true,
+  "linenos": "inline",
+  "style": "bw",
+  "cssclass": "codehilite"
+}'
+          />
+          <div className="mt-2">
+            <p className="text-xs text-gray-500">
+              Configuration for Pygments HTML formatter. Controls syntax highlighting, line numbers, and CSS styling.
+            </p>
+          </div>
         </div>
 
         <div className="flex gap-3">

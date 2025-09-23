@@ -4,6 +4,7 @@ import { redis } from "@/lib/redis";
 import { randomUUID } from "crypto";
 import { CODE_FILE_MAX_SIZE, CODE_FILE_EXTENSIONS } from "@/lib/consts";
 import { createCORSHeaders, handleCORS, validateSecretKey, createErrorResponse, createSuccessResponse } from "@/lib/api-utils";
+import { UploadApiErrorResponse, UploadApiResponse } from "cloudinary";
 
 export async function OPTIONS(req: NextRequest) {
   return handleCORS(req);
@@ -43,22 +44,23 @@ export async function POST(req: NextRequest) {
 
   // Upload to Cloudinary
   const buffer = Buffer.from(await file.arrayBuffer());
-  let upload;
+  let upload: UploadApiResponse;
   try {
-    upload = await new Promise((resolve, reject) => {
+    upload = await new Promise<UploadApiResponse>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           resource_type: "raw",
           folder: "contest_uploads",
           public_id: `${teamname}_${Date.now()}`,
         },
-        (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
+        (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
+          if (err) return reject(err);
+          if (!result) return reject(new Error("No upload result"));
+          resolve(result);
         }
       ).end(buffer);
     });
-  } catch (err) {
+  } catch {
     return createErrorResponse("Cloudinary upload failed", 500, corsHeaders);
   }
 
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     id: randomUUID(),
     filename: file.name,
     teamname,
-    code_url: (upload as any).secure_url,
+    code_url: upload.secure_url,
   });
 
   // console.log(taskString);

@@ -82,7 +82,7 @@ export function createErrorResponse(
 }
 
 export function createSuccessResponse(
-  data: any,
+  data: unknown,
   corsHeaders: HeadersInit
 ): NextResponse {
   return new NextResponse(JSON.stringify(data), {

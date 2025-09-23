@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const cssString = formData.get("css_string") as string;
   const quotesString = formData.get("quotes") as string;
+  const htmlFormatterConfig = formData.get("html_formatter_config") as string;
   const secretKey = formData.get("secretKey") as string;
 
   // Validate secret key
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
           return createErrorResponse("Each quote must have 'author' and 'quote' fields", 400, corsHeaders);
         }
       }
-    } catch (err) {
+    } catch {
       return createErrorResponse("Invalid JSON format for quotes", 400, corsHeaders);
     }
   }
@@ -72,7 +73,8 @@ export async function POST(req: NextRequest) {
     const updates: { [key: string]: string } = {};
     if (cssString) updates.css_string = cssString;
     if (quotesString) updates.quotes = quotesString;
-    
+    if (htmlFormatterConfig) updates.html_formatter_config = htmlFormatterConfig;
+
     if (Object.keys(updates).length > 0) {
       await redis.hSet("config", updates);
     }
