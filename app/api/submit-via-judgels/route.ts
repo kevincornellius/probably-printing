@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import cloudinary from "@/lib/cloudinary";
+import cloudinary, { CLOUDINARY_FOLDER } from "@/lib/cloudinary";
 import { redis } from "@/lib/redis";
 import { randomUUID } from "crypto";
 import { CODE_FILE_MAX_SIZE, CODE_FILE_EXTENSIONS } from "@/lib/consts";
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       cloudinary.uploader.upload_stream(
         {
           resource_type: "raw",
-          folder: "contest_uploads",
+          folder: CLOUDINARY_FOLDER,
           public_id: `${teamname}_${Date.now()}`,
         },
         (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
