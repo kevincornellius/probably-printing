@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   // console.log(taskString);
   console.log("Pushing task to Redis queue:", taskString);
-  await redis.lPush(`task_queue`, taskString);
+  await redis.rPush(`task_queue`, taskString);
 
   return createSuccessResponse({
     success: true,
