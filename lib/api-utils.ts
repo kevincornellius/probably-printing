@@ -73,7 +73,7 @@ export function validateSecretKey(
   return null; // Valid secret key
 }
 
-export async function verifyJudgelsUser(token: string, userInfo: { jid: string; username: string; email: string }): Promise<boolean | object> {
+export async function verifyJudgelsUser(token: string, userInfo: { jid: string; username: string }): Promise<boolean | object> {
   try {
     // Call Judgels API to verify token and get user info
     const response = await fetch(`${JUDGELS_BASE_API_URL}/users/me`, {
@@ -84,7 +84,8 @@ export async function verifyJudgelsUser(token: string, userInfo: { jid: string; 
 
     if (response.ok) {
       const verifiedUser = await response.json();
-      if (verifiedUser.username !== userInfo.username || verifiedUser.jid !== userInfo.jid || verifiedUser.email !== userInfo.email) {
+      if (verifiedUser.username !== userInfo.username || verifiedUser.jid !== userInfo.jid) {
+        console.log("User info mismatch:", verifiedUser, userInfo);
         return false;
       }
       return (!WHITELISTED_JUDGELS_USERS.length || WHITELISTED_JUDGELS_USERS.includes(verifiedUser.username));

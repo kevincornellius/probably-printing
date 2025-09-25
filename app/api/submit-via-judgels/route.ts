@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   let file: File | null = null;
   let teamname = "anonymous";
   let judgelsToken: string | null = null;
-  let judgelsUserInfo: { jid: string; username: string; email: string } = { jid: "", username: "", email: "" };
+  let judgelsUserInfo: { jid: string; username: string } = { jid: "", username: "" };
   try {
     const formData = await req.formData();
     file = formData.get("file") as File;
