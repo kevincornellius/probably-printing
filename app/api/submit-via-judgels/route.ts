@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import cloudinary, { CLOUDINARY_FOLDER } from "@/lib/cloudinary";
 import { redis } from "@/lib/redis";
 import { randomUUID } from "crypto";
-import { CODE_FILE_MAX_SIZE, CODE_FILE_EXTENSIONS } from "@/lib/consts";
+import { CODE_FILE_MAX_SIZE, CODE_FILE_EXTENSIONS, ALLOW_ALL_EXTENSIONS } from "@/lib/consts";
 import { createCORSHeaders, handleCORS, createErrorResponse, createSuccessResponse, verifyJudgelsUser } from "@/lib/api-utils";
 import { UploadApiErrorResponse, UploadApiResponse } from "cloudinary";
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   // Extension check
   const ext = file.name.split(".").pop()?.toLowerCase();
-  if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+  if (!ALLOW_ALL_EXTENSIONS && (!ext || !ALLOWED_EXTENSIONS.includes(ext))) {
     return createErrorResponse("File type not allowed", 415, corsHeaders);
   }
 
