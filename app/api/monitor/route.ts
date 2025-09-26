@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', message: 'Monitor connected' })}\n\n`));
       
       // Set up Redis subscriber
-      let subscriber: any = null;
+      let subscriber: typeof redis | null = null;
       
       const setupSubscriber = async () => {
         try {
