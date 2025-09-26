@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         {
           resource_type: "raw",
           folder: CLOUDINARY_FOLDER,
-          public_id: `${teamname}_${Date.now()}`,
+          public_id: `${teamname}_${Date.now()}_${file.name}`,
         },
         (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
           if (err) return reject(err);
@@ -96,8 +96,9 @@ export async function POST(req: NextRequest) {
     await redis.connect();
   }
   // # Data format: {"id": "Some_ID", "filename": "code.cpp", "teamname": "Team A", "code_url": "http://example.com/code.cpp"}
+  const taskId = randomUUID();
   const taskString = JSON.stringify({
-    id: randomUUID(),
+    id: taskId,
     filename: file.name,
     teamname,
     code_url: upload.secure_url,
@@ -106,6 +107,18 @@ export async function POST(req: NextRequest) {
   // console.log(taskString);
   console.log("Pushing task to Redis queue:", taskString);
   await redis.lPush(`task_queue`, taskString);
+
+  // Publish to monitoring channel
+  const monitorEvent = JSON.stringify({
+    type: 'submission',
+    timestamp: new Date().toISOString(),
+    id: taskId,
+    teamname,
+    filename: file.name,
+    fileUrl: upload.secure_url,
+    source: 'api/submit-via-judgels',
+  });
+  await redis.publish('submissions', monitorEvent);
 
   return createSuccessResponse({
     success: true,

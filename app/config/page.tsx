@@ -318,13 +318,21 @@ body {
           </button>
         </div>
 
-        <div className="mt-6 text-center">
-          <a 
-            href="/submit" 
-            className="text-purple-600 hover:text-purple-800 text-sm font-medium transition"
-          >
-            ← Back to Submit Page
-          </a>
+        <div className="mt-6 text-center space-y-2">
+          <div className="flex justify-center gap-4">
+            <a 
+              href="/submit" 
+              className="text-purple-600 hover:text-purple-800 text-sm font-medium transition"
+            >
+              ← Back to Submit Page
+            </a>
+            <a 
+              href="/monitor" 
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition"
+            >
+              Monitor Submissions →
+            </a>
+          </div>
         </div>
       </div>
     </div>
