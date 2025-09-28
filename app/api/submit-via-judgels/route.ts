@@ -14,6 +14,15 @@ export async function OPTIONS(req: NextRequest) {
 const ALLOWED_EXTENSIONS = CODE_FILE_EXTENSIONS.map(ext => ext.substring(1));
 const ENABLE_JUDGELS_PLUGIN = process.env.ENABLE_JUDGELS_PLUGIN?.toLowerCase() === "true";
 
+function safeFilename(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // illegal chars
+    .replace(/\s+/g, '_')                   // spaces to underscores
+    .replace(/_+/g, '_')                    // collapse underscores
+    .replace(/^\.+/, '')                    // leading dots
+    .slice(0, 255);                         // max length
+}
+
 export async function POST(req: NextRequest) {
   if (ENABLE_JUDGELS_PLUGIN !== true) {
     return new Response("Judgels plugin integration is disabled", { status: 503 });
@@ -76,7 +85,7 @@ export async function POST(req: NextRequest) {
         {
           resource_type: "raw",
           folder: CLOUDINARY_FOLDER,
-          public_id: `${teamname}_${Date.now()}_${file.name}`,
+          public_id: safeFilename(`${teamname}_${Date.now()}_${file.name}`),
         },
         (err: UploadApiErrorResponse | undefined, result: UploadApiResponse | undefined) => {
           if (err) return reject(err);
